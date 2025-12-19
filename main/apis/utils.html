@@ -441,6 +441,7 @@ is useful for anti-aliasing. Default: False.</p></li>
 <li><p><strong>batch_ids</strong>. The batch indices of the projected Gaussians. Int32 tensor of shape [nnz].</p></li>
 <li><p><strong>camera_ids</strong>. The camera indices of the projected Gaussians. Int32 tensor of shape [nnz].</p></li>
 <li><p><strong>gaussian_ids</strong>. The column indices of the projected Gaussians. Int32 tensor of shape [nnz].</p></li>
+<li><p><strong>indptr</strong>. CSR-style index pointer into gaussian_ids for batch-camera pairs. Int32 tensor of shape [B*C+1].</p></li>
 <li><p><strong>radii</strong>. The maximum radius of the projected Gaussians in pixel unit. Int32 tensor of shape [nnz, 2].</p></li>
 <li><p><strong>means</strong>. Projected Gaussian means in 2D. [nnz, 2]</p></li>
 <li><p><strong>depths</strong>. The z-depth of the projected Gaussians. [nnz]</p></li>
