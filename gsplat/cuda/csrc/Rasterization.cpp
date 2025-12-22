@@ -312,6 +312,99 @@ std::tuple<at::Tensor, at::Tensor> rasterize_to_indices_3dgs(
     return std::make_tuple(gaussian_ids, pixel_ids);
 }
 
+std::tuple<at::Tensor, at::Tensor> rasterize_to_indices_3dgs_depth(
+    const uint32_t range_start,
+    const uint32_t range_end,        // iteration steps
+    const at::Tensor transmittances, // [..., image_height, image_width]
+    // Gaussian parameters
+    const at::Tensor means2d,   // [..., N, 2]
+    const at::Tensor conics,    // [..., N, 3]
+    const at::Tensor opacities, // [..., N]
+    const at::Tensor depths,    // [..., N]
+    const at::Tensor depth_map, // [..., image_height, image_width]
+    // image size
+    const uint32_t image_width,
+    const uint32_t image_height,
+    const uint32_t tile_size,
+    // intersections
+    const at::Tensor tile_offsets, // [..., tile_height, tile_width]
+    const at::Tensor flatten_ids   // [n_isects]
+) {
+    DEVICE_GUARD(means2d);
+    CHECK_INPUT(means2d);
+    CHECK_INPUT(conics);
+    CHECK_INPUT(opacities);
+    CHECK_INPUT(depths);
+    CHECK_INPUT(depth_map);
+    CHECK_INPUT(tile_offsets);
+    CHECK_INPUT(flatten_ids);
+
+    auto opt = means2d.options();
+    uint32_t N = means2d.size(-2); // number of gaussians
+    uint32_t I = means2d.numel() / (2 * N); // number of images
+
+    uint32_t n_isects = flatten_ids.size(0);
+
+    // First pass: count the number of gaussians that contribute to each pixel
+    int64_t n_elems;
+    at::Tensor chunk_starts;
+    if (n_isects) {
+        at::Tensor chunk_cnts = at::zeros(
+            {I * image_height * image_width}, opt.dtype(at::kInt)
+        );
+        launch_rasterize_to_indices_3dgs_depth_kernel(
+            range_start,
+            range_end,
+            transmittances,
+            means2d,
+            conics,
+            opacities,
+            depths,
+            depth_map,
+            image_width,
+            image_height,
+            tile_size,
+            tile_offsets,
+            flatten_ids,
+            c10::nullopt, // chunk_starts
+            at::optional<at::Tensor>(chunk_cnts),
+            c10::nullopt, // gaussian_ids
+            c10::nullopt  // pixel_ids
+        );
+        at::Tensor cumsum = at::cumsum(chunk_cnts, 0, chunk_cnts.scalar_type());
+        n_elems = cumsum[-1].item<int64_t>();
+        chunk_starts = at::sub(cumsum, chunk_cnts);
+    } else {
+        n_elems = 0;
+    }
+
+    // Second pass: allocate memory and write out the gaussian and pixel ids.
+    at::Tensor gaussian_ids = at::empty({n_elems}, opt.dtype(at::kLong));
+    at::Tensor pixel_ids = at::empty({n_elems}, opt.dtype(at::kLong));
+    if (n_elems) {
+        launch_rasterize_to_indices_3dgs_depth_kernel(
+            range_start,
+            range_end,
+            transmittances,
+            means2d,
+            conics,
+            opacities,
+            depths,
+            depth_map,
+            image_width,
+            image_height,
+            tile_size,
+            tile_offsets,
+            flatten_ids,
+            at::optional<at::Tensor>(chunk_starts),
+            c10::nullopt, // chunk_cnts
+            at::optional<at::Tensor>(gaussian_ids),
+            at::optional<at::Tensor>(pixel_ids)
+        );
+    }
+    return std::make_tuple(gaussian_ids, pixel_ids);
+}
+
 ////////////////////////////////////////////////////
 // 2DGS
 ////////////////////////////////////////////////////

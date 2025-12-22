@@ -95,6 +95,32 @@ void launch_rasterize_to_indices_3dgs_kernel(
     at::optional<at::Tensor> pixel_ids     // [n_elems]
 );
 
+void launch_rasterize_to_indices_3dgs_depth_kernel(
+    const uint32_t range_start,
+    const uint32_t range_end,        // iteration steps
+    const at::Tensor transmittances, // [..., image_height, image_width]
+    // Gaussian parameters
+    const at::Tensor means2d,   // [..., N, 2]
+    const at::Tensor conics,    // [..., N, 3]
+    const at::Tensor opacities, // [..., N]
+    const at::Tensor depths,    // [..., N]
+    const at::Tensor depth_map, // [..., image_height, image_width]
+    // image size
+    const uint32_t image_width,
+    const uint32_t image_height,
+    const uint32_t tile_size,
+    // intersections
+    const at::Tensor tile_offsets, // [..., tile_height, tile_width]
+    const at::Tensor flatten_ids,  // [n_isects]
+    // helper for double pass
+    const at::optional<at::Tensor>
+        chunk_starts, // [..., image_height, image_width]
+    // outputs
+    at::optional<at::Tensor> chunk_cnts,   // [..., image_height, image_width]
+    at::optional<at::Tensor> gaussian_ids, // [n_elems]
+    at::optional<at::Tensor> pixel_ids     // [n_elems]
+);
+
 /////////////////////////////////////////////////
 // rasterize_to_pixels_2dgs
 /////////////////////////////////////////////////

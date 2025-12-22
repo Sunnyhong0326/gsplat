@@ -933,6 +933,101 @@ def rasterize_to_indices_in_range(
     return out_gauss_ids, out_pixel_ids, out_image_ids
 
 
+@torch.no_grad()
+def rasterize_to_indices_in_range_depth(
+    range_start: int,
+    range_end: int,
+    transmittances: Tensor,  # [..., image_height, image_width]
+    means2d: Tensor,  # [..., N, 2]
+    conics: Tensor,  # [..., N, 3]
+    opacities: Tensor,  # [..., N]
+    depths: Tensor,  # [..., N]
+    depth_map: Tensor,  # [..., image_height, image_width]
+    image_width: int,
+    image_height: int,
+    tile_size: int,
+    isect_offsets: Tensor,  # [..., tile_height, tile_width]
+    flatten_ids: Tensor,  # [n_isects]
+) -> Tuple[Tensor, Tensor, Tensor]:
+    """Rasterizes Gaussians to images but only returns the indices, stopping by depth.
+
+    .. note::
+
+        This function supports iterative rasterization, in which each call of this function
+        will rasterize a batch of Gaussians from near to far, defined by `[range_start, range_end)`.
+        If a one-step full rasterization is desired, set `range_start` to 0 and `range_end` to a really
+        large number, e.g, 1e10.
+
+    Args:
+        range_start: The start batch of Gaussians to be rasterized (inclusive).
+        range_end: The end batch of Gaussians to be rasterized (exclusive).
+        transmittances: Currently transmittances. [..., image_height, image_width]
+        means2d: Projected Gaussian means. [..., N, 2]
+        conics: Inverse of the projected covariances with only upper triangle values. [..., N, 3]
+        opacities: Gaussian opacities that support per-view values. [..., N]
+        depths: Z-depth of the projected Gaussians. [..., N]
+        depth_map: Per-pixel depth limits in the same camera space. [..., image_height, image_width]
+        image_width: Image width.
+        image_height: Image height.
+        tile_size: Tile size.
+        isect_offsets: Intersection offsets outputs from `isect_offset_encode()`. [..., tile_height, tile_width]
+        flatten_ids: The global flatten indices in [I * N] from  `isect_tiles()`. [n_isects]
+
+    Returns:
+        A tuple:
+
+        - **Gaussian ids**. Gaussian ids for the pixel intersection. A flattened list of shape [M].
+        - **Pixel ids**. pixel indices (row-major). A flattened list of shape [M].
+        - **Image ids**. image indices. A flattened list of shape [M].
+    """
+    image_dims = means2d.shape[:-2]
+    tile_height, tile_width = isect_offsets.shape[-2:]
+    N = means2d.shape[-2]
+    assert transmittances.shape == image_dims + (
+        image_height,
+        image_width,
+    ), transmittances.shape
+    assert means2d.shape == image_dims + (N, 2), means2d.shape
+    assert conics.shape == image_dims + (N, 3), conics.shape
+    assert opacities.shape == image_dims + (N,), opacities.shape
+    assert depths.shape == image_dims + (N,), depths.shape
+    assert depth_map.shape == image_dims + (
+        image_height,
+        image_width,
+    ), depth_map.shape
+    assert isect_offsets.shape == image_dims + (
+        tile_height,
+        tile_width,
+    ), isect_offsets.shape
+    assert (
+        tile_height * tile_size >= image_height
+    ), f"Assert Failed: {tile_height} * {tile_size} >= {image_height}"
+    assert (
+        tile_width * tile_size >= image_width
+    ), f"Assert Failed: {tile_width} * {tile_size} >= {image_width}"
+
+    out_gauss_ids, out_indices = _make_lazy_cuda_func(
+        "rasterize_to_indices_3dgs_depth"
+    )(
+        range_start,
+        range_end,
+        transmittances.contiguous(),
+        means2d.contiguous(),
+        conics.contiguous(),
+        opacities.contiguous(),
+        depths.contiguous(),
+        depth_map.contiguous(),
+        image_width,
+        image_height,
+        tile_size,
+        isect_offsets.contiguous(),
+        flatten_ids.contiguous(),
+    )
+    out_pixel_ids = out_indices % (image_width * image_height)
+    out_image_ids = out_indices // (image_width * image_height)
+    return out_gauss_ids, out_pixel_ids, out_image_ids
+
+
 class _QuatScaleToCovarPreci(torch.autograd.Function):
     """Converts quaternions and scales to covariance and precision matrices."""
 

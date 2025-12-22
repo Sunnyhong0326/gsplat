@@ -280,6 +280,26 @@ std::tuple<at::Tensor, at::Tensor> rasterize_to_indices_3dgs(
     const at::Tensor flatten_ids   // [n_isects]
 );
 
+// Rasterize 3D Gaussian and stop by per-pixel depth map.
+std::tuple<at::Tensor, at::Tensor> rasterize_to_indices_3dgs_depth(
+    const uint32_t range_start,
+    const uint32_t range_end,        // iteration steps
+    const at::Tensor transmittances, // [..., image_height, image_width]
+    // Gaussian parameters
+    const at::Tensor means2d,   // [..., N, 2]
+    const at::Tensor conics,    // [..., N, 3]
+    const at::Tensor opacities, // [..., N]
+    const at::Tensor depths,    // [..., N]
+    const at::Tensor depth_map, // [..., image_height, image_width]
+    // image size
+    const uint32_t image_width,
+    const uint32_t image_height,
+    const uint32_t tile_size,
+    // intersections
+    const at::Tensor tile_offsets, // [..., tile_height, tile_width]
+    const at::Tensor flatten_ids   // [n_isects]
+);
+
 // Relocate some Gaussians in the Densification Process.
 // Equation (9) in "3D Gaussian Splatting as Markov Chain Monte Carlo"
 std::tuple<at::Tensor, at::Tensor> relocation(
