@@ -3,12 +3,12 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="prev" title="Migrate from diff-gaussian-rasterization" href="migration_inria.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="G-SHARP v0.2 Integration Proposal" href="../proposals/gsharp_v0_2_port.html"><link rel="prev" title="Migrate from diff-gaussian-rasterization" href="migration_inria.html">
 
-    <!-- Generated with Sphinx 7.4.7 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 8.1.3 and Furo 2025.12.19 -->
         <title>Migrate from gsplat v0.1.11 - gsplat documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -245,8 +245,10 @@
   <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../examples/colmap.html">Fit a COLMAP Capture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/dynamic_surgical.html">Dynamic Surgical Scene Reconstruction (G-SHARP port, experimental)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../examples/image.html">Fit a Single Image</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../examples/large_scale.html">Render a Large Scene</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/ncore.html">Train on an NCore v4 Capture</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Conventions</span></p>
 <ul>
@@ -255,6 +257,7 @@
 <p class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../apis/compression.html">Compression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../apis/contrib.html">gsplat.contrib (experimental)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../apis/rasterization.html">Rasterization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../apis/strategy.html">Densification</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../apis/utils.html">Utils</a></li>
@@ -269,6 +272,10 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="migration_inria.html">Migrate from diff-gaussian-rasterization</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Migrate from gsplat v0.1.11</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Proposals</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../proposals/gsharp_v0_2_port.html">G-SHARP v0.2 Integration Proposal</a></li>
 </ul>
 
 </div>
@@ -371,23 +378,53 @@ the future.</p>
 <span class="n">alphas</span> <span class="o">=</span> <span class="n">alphas</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># [height, width]</span>
 
 <span class="c1"># The intermediate results from fully_fused_projection can be accessed via meta, e.g.,</span>
-<span class="n">means2d</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">&#39;means2d&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># [N, 2]</span>
+<span class="n">means2d</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s1">'means2d'</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># [N, 2]</span>
 </pre></div>
 </div>
 </section>
 <section id="color-as-spherical-harmonics">
 <h2>Color as Spherical Harmonics<a class="headerlink" href="#color-as-spherical-harmonics" title="Link to this heading">¶</a></h2>
-<p>In <cite>v0.1.11</cite>, user needs to explicitly converting spherical harmonics coefficients to RGB,
-before passing it into <cite>rasterize_gaussians</cite>:</p>
+<p>In <cite>v0.1.11</cite>, users need to explicitly convert spherical harmonics coefficients to RGB
+before passing them into <cite>rasterize_gaussians</cite>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gsplat</span><span class="w"> </span><span class="kn">import</span> <span class="n">spherical_harmonics</span>
 
 <span class="n">sh_degree</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># the amount of bands activated</span>
 <span class="n">sh_coeffs</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># [N, K, 3]</span>
 
 <span class="n">viewdirs</span> <span class="o">=</span> <span class="n">means</span> <span class="o">-</span> <span class="n">camtoworld</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="c1"># [N, 3]</span>
-<span class="n">colors</span> <span class="o">=</span> <span class="n">spherical_harmonics</span><span class="p">(</span><span class="n">sh_degree</span><span class="p">,</span> <span class="n">viewdirs</span><span class="p">,</span> <span class="n">colors</span><span class="p">)</span>  <span class="c1"># [N, 3]</span>
+<span class="n">colors</span> <span class="o">=</span> <span class="n">spherical_harmonics</span><span class="p">(</span><span class="n">sh_degree</span><span class="p">,</span> <span class="n">viewdirs</span><span class="p">,</span> <span class="n">sh_coeffs</span><span class="p">)</span>  <span class="c1"># [N, 3]</span>
 </pre></div>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The public <a class="reference internal" href="../apis/utils.html#gsplat.spherical_harmonics" title="gsplat.spherical_harmonics"><code class="xref py py-func docutils literal notranslate"><span class="pre">spherical_harmonics()</span></code></a> function no longer accepts precomputed view directions. Its signature is
+now <code class="docutils literal notranslate"><span class="pre">spherical_harmonics(degrees_to_use,</span> <span class="pre">means,</span> <span class="pre">viewmats,</span> <span class="pre">coeffs,</span>
+<span class="pre">masks=None,</span> <span class="pre">batch_ids=None,</span> <span class="pre">camera_ids=None,</span> <span class="pre">gaussian_ids=None)</span></code>. Existing
+calls using <code class="docutils literal notranslate"><span class="pre">(sh_degree,</span> <span class="pre">viewdirs,</span> <span class="pre">sh_coeffs)</span></code> must be updated.</p>
+</div>
+<p>For a direct call to <a class="reference internal" href="../apis/utils.html#gsplat.spherical_harmonics" title="gsplat.spherical_harmonics"><code class="xref py py-func docutils literal notranslate"><span class="pre">spherical_harmonics()</span></code></a>, pass world-space
+Gaussian means and world-to-camera matrices. The function computes the view
+directions internally and includes a camera dimension in its dense output:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gsplat</span><span class="w"> </span><span class="kn">import</span> <span class="n">spherical_harmonics</span>
+
+<span class="n">sh_degree</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># the amount of bands activated</span>
+<span class="n">means</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># [N, 3], world-space Gaussian means</span>
+<span class="n">viewmats</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># [C, 4, 4], world-to-camera matrices</span>
+<span class="n">sh_coeffs</span><span class="p">:</span> <span class="n">Tensor</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># [N, K, D]</span>
+
+<span class="n">features</span> <span class="o">=</span> <span class="n">spherical_harmonics</span><span class="p">(</span>
+    <span class="n">sh_degree</span><span class="p">,</span> <span class="n">means</span><span class="p">,</span> <span class="n">viewmats</span><span class="p">,</span> <span class="n">sh_coeffs</span>
+<span class="p">)</span>  <span class="c1"># [C, N, D]</span>
+</pre></div>
+</div>
+<p>With batch dimensions, the dense output shape is <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">C,</span> <span class="pre">N,</span> <span class="pre">D]</span></code>. Packed
+calls can additionally provide a <code class="docutils literal notranslate"><span class="pre">[nnz]</span></code> mask plus <code class="docutils literal notranslate"><span class="pre">batch_ids</span></code>,
+<code class="docutils literal notranslate"><span class="pre">camera_ids</span></code>, and <code class="docutils literal notranslate"><span class="pre">gaussian_ids</span></code>, and return <code class="docutils literal notranslate"><span class="pre">[nnz,</span> <span class="pre">D]</span></code>. In dense mode,
+<code class="docutils literal notranslate"><span class="pre">masks</span></code> has shape <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">C,</span> <span class="pre">N]</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">viewmats</span></code> must be rigid world-to-camera transforms with orthonormal
+rotation blocks. Camera positions are recovered as <code class="docutils literal notranslate"><span class="pre">-R^T</span> <span class="pre">t</span></code> rather than with
+a full matrix inverse, so results are approximate if a view matrix contains
+scale or shear, or if optimizing it directly does not preserve orthonormality.</p>
 <p>In <cite>v1.0.0</cite>, the SH to RGB conversion is handled automatically in <a class="reference internal" href="../apis/rasterization.html#gsplat.rasterization" title="gsplat.rasterization"><code class="xref py py-func docutils literal notranslate"><span class="pre">rasterization()</span></code></a>.
 The equivalent code is:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gsplat</span><span class="w"> </span><span class="kn">import</span> <span class="n">rasterization</span>
@@ -426,19 +463,19 @@ from <cite>project_gaussians</cite> to <cite>rasterize_gaussians</cite>:</p>
 
 <span class="n">expected_depth</span><span class="p">,</span> <span class="n">alphas</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">rasterization</span><span class="p">(</span>
     <span class="o">...</span>
-    <span class="n">render_mode</span><span class="o">=</span><span class="s2">&quot;ED&quot;</span><span class="p">,</span> <span class="c1"># render expected depth only</span>
+    <span class="n">render_mode</span><span class="o">=</span><span class="s2">"ED"</span><span class="p">,</span> <span class="c1"># render expected depth only</span>
     <span class="o">...</span>
 <span class="p">)</span>
 
 <span class="n">accumulated_depth</span><span class="p">,</span> <span class="n">alphas</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">rasterization</span><span class="p">(</span>
     <span class="o">...</span>
-    <span class="n">render_mode</span><span class="o">=</span><span class="s2">&quot;D&quot;</span><span class="p">,</span> <span class="c1"># render accumulated depth only</span>
+    <span class="n">render_mode</span><span class="o">=</span><span class="s2">"D"</span><span class="p">,</span> <span class="c1"># render accumulated depth only</span>
     <span class="o">...</span>
 <span class="p">)</span>
 
 <span class="n">rgbd</span><span class="p">,</span> <span class="n">alphas</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="n">rasterization</span><span class="p">(</span>
     <span class="o">...</span>
-    <span class="n">render_mode</span><span class="o">=</span><span class="s2">&quot;RGB+ED&quot;</span><span class="p">,</span> <span class="c1"># render color with expected depth</span>
+    <span class="n">render_mode</span><span class="o">=</span><span class="s2">"RGB+ED"</span><span class="p">,</span> <span class="c1"># render color with expected depth</span>
     <span class="o">...</span>
 <span class="p">)</span>
 </pre></div>
@@ -451,7 +488,15 @@ from <cite>project_gaussians</cite> to <cite>rasterize_gaussians</cite>:</p>
       <footer>
         
         <div class="related-pages">
-          
+          <a class="next-page" href="../proposals/gsharp_v0_2_port.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">G-SHARP v0.2 Integration Proposal</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
           <a class="prev-page" href="migration_inria.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
@@ -509,7 +554,7 @@ from <cite>project_gaussians</cite> to <cite>rasterize_gaussians</cite>:</p>
     </aside>
   </div>
 </div><script src="../_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
     </body>

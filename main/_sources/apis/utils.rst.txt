@@ -11,6 +11,10 @@ Below are the basic functions that supports the rasterization.
 
 .. autofunction:: spherical_harmonics
 
+.. autofunction:: spherical_harmonics_l0
+
+.. autofunction:: spherical_harmonics_l1_plus
+
 .. autofunction:: quat_scale_to_covar_preci
 
 .. autofunction:: proj
@@ -24,6 +28,12 @@ Below are the basic functions that supports the rasterization.
 .. autofunction:: world_to_cam
 
 .. autofunction:: rasterize_to_pixels
+
+.. autofunction:: rasterize_num_contributing_gaussians
+
+.. autofunction:: rasterize_contributing_gaussian_ids
+
+.. autofunction:: rasterize_top_contributing_gaussian_ids
 
 .. autofunction:: rasterize_to_indices_in_range
 
